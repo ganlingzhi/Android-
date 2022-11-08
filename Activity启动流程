@@ -1,0 +1,23 @@
+Activity启动主要涉及三个进程
+
+1.系统进程 SystemServer 负责管理整个framework，是Zygote孵化的第一个进程
+2.App进程 App进程是用户点击桌面icon时，通过Launcher进程请求SystemServer，再调用Zygote孵化的
+3.Zygote进程 所有进程孵化都由Zygote进程完成，而Zygote进程时init进程的子进程，也由init进程孵化
+4.如果点击桌面icon启动还会涉及到 Launcher进程 Zygote进程孵化的第一个进程
+
+
+init -> Zygote -> Launcher 请求 SystemServer -> App
+
+Activity启动流程主要包含几步
+
+点击Launcher的一个icon开始
+
+
+1.点击icon -> Launcher进程向AMS发送点击icon的启动信息（AndroidMainifest.xml中定义的启动信息，数据由PackageManagerService解析）
+2.AMS收到信息后会经过ActivityTaskManagerService -> ActivityStartController -> ActivityStarter内部类Request，然后把信息存到Request中，通知Launcher进程让Activity休眠（这个过程会检测Activity是否注册）
+3.Launcher进程的ApplicationThread对象收到信息后调用handlePauseActivity()进行暂停，并通知AMS已经暂停。
+4.Launcher检查要启动的Activity所在的进程是否启动，启动了就打开，未启动则会通过Process.start(android.app.ActivityThread)来启动一个新的进程
+5.进程创建好后，会调用ActivityThread.main()，初始化MainLooper，并创建Application对象。然后Instrumentation.newApplication()反射创建Application，创建ContextImpl通过Application对attach方法与Application进行绑定，最终调用Instrumentation.callApplicationOnCreate执行Application对onCreate函数进行一些初始化对工作。完成后会通知AMS进程已经启动好了。
+6.AMS收到app进程启动成功的消息后，从ActivityTaskManagerService中取出对应的Activity启动信息，并通过ApplicationThreadProxy对象，调用其
+scheduleTransaction(ClientTransaction transaction)方法，具体要启动的Activity都在ClientTransaction对象中。
+7.app进程的ApplicationThread收到消息后会调用Activity
