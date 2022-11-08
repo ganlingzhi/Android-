@@ -1,3 +1,7 @@
+Android King
+
+1.Activiyt启动流程
+
 Activity启动主要涉及三个进程
 
 1.系统进程 SystemServer 负责管理整个framework，是Zygote孵化的第一个进程
@@ -7,6 +11,25 @@ Activity启动主要涉及三个进程
 
 
 init -> Zygote -> Launcher 请求 SystemServer -> App
+
+
+
+在Android中使用的是Binder通信，一次拷贝
+
+数据接收端server：
+	Binder服务端在启动后，通过系统调用Binder驱动在内核空间创建一个数据接收缓存区(binder_open)
+	内核收到系统调用指令，进而调用binder_mmap函数进行对应的处理。首先申请一块物理内存，然后建立Binder服务端端用户空间和内核空间一块区域的映射关系
+	           系统调用               binder_open
+	server  ----------> Binder驱动  ----------> 内核空间开辟数据接收缓存区
+	内核  -----------> binder_mmap（申请物理内存，建立内核空间和server用户空间的映射关系）
+
+数据发送端client：
+	发送端向服务端发送通信请求，系统调用打包发送到驱动中，通过copy_from_user()将数据从用户空间拷贝到缓存区中
+	由于内核缓存区和接收进程的用户空间存在映射，因此也就相当于把数据发送到了接收进程的用户空间(需要进行一定的偏移操作)
+	
+
+
+
 
 Activity启动流程主要包含几步
 
@@ -20,4 +43,5 @@ Activity启动流程主要包含几步
 5.进程创建好后，会调用ActivityThread.main()，初始化MainLooper，并创建Application对象。然后Instrumentation.newApplication()反射创建Application，创建ContextImpl通过Application对attach方法与Application进行绑定，最终调用Instrumentation.callApplicationOnCreate执行Application对onCreate函数进行一些初始化对工作。完成后会通知AMS进程已经启动好了。
 6.AMS收到app进程启动成功的消息后，从ActivityTaskManagerService中取出对应的Activity启动信息，并通过ApplicationThreadProxy对象，调用其
 scheduleTransaction(ClientTransaction transaction)方法，具体要启动的Activity都在ClientTransaction对象中。
-7.app进程的ApplicationThread收到消息后会调用Activity
+7.app进程的ApplicationThread收到消息后会调用ActivityThread.sendMessage()发送Handler消息，在handleMessage方法的内部又会调用
+mTransactionExecutor.execute(transaction)；具体参考第3步 最终调用performLaunchActivity方法创建activity和context并将其做关联，然后通过mInstrumentation.callActivityOnCreate() -> Activity.performCreate() -> Activity.onCreate()回调到了Activity的生命周期。
