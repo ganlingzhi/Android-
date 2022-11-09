@@ -1,33 +1,17 @@
-onSaveInstanceState()和onRestoreInstanceState()调用时机 附activtiy生命周期图
+onSaveInstanceState()和onRestoreInstanceState()调用时机
+
+onSaveInstanceState(Bundle outState)
+
+作用：在Activity被销毁之前调用，用来保存每个实例的状态，这样就可以保证该状态能够从onCreate(Bundle)或者onRestoreInstanceState(Bundle)恢复过来
 
 
+Part 1
 
+本方法可能被销毁前调用。例如：如果Activity B 启动后位于Activity A 的前端，在某个时刻Activity A 因为系统回收资源要被销毁，Activity A 有机会通过onSaveInstanceState() 来保存其用户界面状态，使得将来用户返回到Activity A 的时候能够通过onCreate(Bundle) 或者
+onRestoreInstanceState(Bundle)来恢复其界面状态。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+不要将这个方法和Activity生命周期中的回调如onPause()或者onStop()搞混淆了，onPause()在Activity被放置到后台或者自行销毁时总会调用，onStop()在Activity被销毁时调用。
+两个例子：
+	当用户从Activity B 返回Activity A 时，onPause()和onStop()会被调用，但是onSaveInstanceState(Bundle)
+    不会被调用，这是由于此时的实例B永远不会被恢复。
+    当Activity B 处于 Activity A 前端时，如果Activity A 的用户界面状态没有被破坏，那么onSaveInstanceState(Bundle)也不会被调用，onPause则会被调用
